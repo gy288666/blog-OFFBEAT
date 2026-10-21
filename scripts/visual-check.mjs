@@ -7,6 +7,7 @@ const errors=[];page.on('pageerror',e=>errors.push(e.message));page.on('console'
 await page.goto('http://127.0.0.1:5173/',{waitUntil:'networkidle'});
 await page.waitForTimeout(2200);
 await page.screenshot({path:'.preview/desktop.png',fullPage:true});
+await page.screenshot({path:'.preview/desktop-fold.png',fullPage:false});
 console.log(JSON.stringify({title:await page.title(),webgl:await page.locator('body').evaluate(el=>!el.classList.contains('no-webgl')),canvasCount:await page.locator('canvas').count(),errors}));
 await page.setViewportSize({width:390,height:844});
 await page.waitForTimeout(1000);

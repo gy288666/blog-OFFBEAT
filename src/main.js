@@ -1,57 +1,63 @@
 import './tokens.css';
 import './style.css';
+import './observatory.css';
 import { articles } from './articles.js';
-import { startWorld } from './world.js';
 
 const paths={arrow:'M7 17 17 7M7 7h10v10',right:'M5 12h14m-6-6 6 6-6 6',search:'m21 21-5-5M18 10a8 8 0 1 1-16 0 8 8 0 0 1 16 0',spark:'m12 2 2.7 7.3L22 12l-7.3 2.7L12 22l-2.7-7.3L2 12l7.3-2.7Z',sun:'M12 8a4 4 0 1 0 0 8 4 4 0 0 0 0-8M12 2v2m0 16v2M2 12h2m16 0h2M5 5l1.5 1.5m11 11L19 19M5 19l1.5-1.5m11-11L19 5',pause:'M9 5v14M15 5v14',play:'m8 4 12 8-12 8Z',close:'m6 6 12 12M6 18 18 6',book:'M5 4h14v17l-7-4-7 4Z',check:'m5 12 4 4L19 6',clock:'M12 8v5l3 2M22 12a10 10 0 1 1-20 0 10 10 0 0 1 20 0',code:'m8 6-6 6 6 6m8-12 6 6-6 6m-3-15-2 18',heart:'M20.8 4.6a5.5 5.5 0 0 0-7.8 0L12 5.7l-1.1-1.1a5.5 5.5 0 0 0-7.8 7.8L12 21l8.8-8.6a5.5 5.5 0 0 0 0-7.8Z',volume:'m11 5-6 4H2v6h3l6 4ZM15 8a6 6 0 0 1 0 8m3-11a10 10 0 0 1 0 14',muted:'m11 5-6 4H2v6h3l6 4Zm5 4 5 6m0-6-5 6',flip:'M4 10a8 8 0 0 1 14-5l3 3m0-6v6h-6M20 14A8 8 0 0 1 6 19l-3-3m0 6v-6h6',menu:'M4 7h16M4 12h16M4 17h16'};
 export const icon=(name,cls='')=>`<svg class="icon ${cls}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="${paths[name]||paths.spark}"/></svg>`;
 const orbitLogo=`<svg viewBox="0 0 42 42" fill="none" aria-hidden="true"><circle cx="21" cy="21" r="11" stroke="currentColor" stroke-width="1.7"/><ellipse cx="21" cy="21" rx="20" ry="8" transform="rotate(-35 21 21)" stroke="currentColor" stroke-width="1.7"/><circle cx="34" cy="10" r="3" fill="currentColor"/></svg>`;
-function readStore(key,fallback){try{return JSON.parse(localStorage.getItem(key))??fallback}catch{return fallback}}
-function writeStore(key,value){try{localStorage.setItem(key,JSON.stringify(value))}catch{}}
-let saved=new Set(readStore('offbeat-saved',[]));
+let storageWarning=false;
+function readStore(key,fallback){try{return JSON.parse(localStorage.getItem(key))??fallback}catch{storageWarning=true;return fallback}}
+function writeStore(key,value){try{localStorage.setItem(key,JSON.stringify(value));return true}catch{showStorageError();return false}}
+const storedBookmarks=readStore('offbeat-saved',[]);
+let saved=new Set(Array.isArray(storedBookmarks)?storedBookmarks.filter(id=>articles.some(a=>a.id===id)):[]);
 let filter='全部文章',showAll=false,query='';
 const reduced=matchMedia('(prefers-reduced-motion: reduce)');
-let motion=readStore('offbeat-motion',!reduced.matches),sound=false;
+const storedMotion=readStore('offbeat-motion',!reduced.matches);
+let motion=typeof storedMotion==='boolean'?storedMotion:!reduced.matches,sound=false;
 document.body.classList.toggle('still',!motion);
 document.querySelector('#app').innerHTML=`
-  <div class="ambient" aria-hidden="true"><span></span><span></span></div>
+  <div class="ambient" aria-hidden="true"><span></span><span></span></div><div class="grain" aria-hidden="true"></div>
   <div class="reading-progress" id="reading-progress"></div>
   <header class="site-header shell">
-    <a class="brand" href="#" aria-label="OFFBEAT 首页">${orbitLogo}<span>OFFBEAT<span class="brand-dot">.</span></span></a>
+    <a class="brand" href="#" aria-label="OFFBEAT 首页">${orbitLogo}<span>OFFBEAT<span class="brand-dot">.</span><small>一个自由生长的私人宇宙</small></span></a>
     <nav class="main-nav" aria-label="主导航"><a href="#" class="active">首页</a><a href="#journal">文章<span class="tiny-dot"></span></a><a href="#playground">游乐场</a><button data-open="about">关于我 ${icon('arrow')}</button></nav>
     <div class="header-actions"><button class="icon-button" id="search-open" aria-label="搜索文章">${icon('search')}</button><span class="divider"></span><button class="icon-button" id="motion-toggle" aria-label="${motion?'暂停动效':'开启动效'}" title="${motion?'暂停动效':'开启动效'}" aria-pressed="${motion}">${icon(motion?'pause':'play')}</button><button class="icon-button sound-toggle" aria-label="开启环境音" title="开启环境音" aria-pressed="false">${icon('muted')}</button></div>
   </header>
 
   <main>
+    <div class="state-banner shell" id="scene-error" role="status" hidden><span></span><button id="retry-scene">重试</button></div>
+    <div class="state-banner shell" id="storage-error" role="status" hidden><span>浏览器无法保存偏好与收藏。当前页面仍可使用，但刷新后可能丢失。</span><button id="dismiss-storage-error" aria-label="关闭存储提示">知道了</button></div>
     <section class="hero shell" aria-labelledby="hero-title">
       <div class="hero-copy">
-        <div class="eyebrow"><span class="live-dot"></span> A SMALL CORNER OF THE INTERNET <span class="eyebrow-rule"></span></div>
-        <h1 id="hero-title">不循常规<span class="title-period">.</span><br><span class="serif-title">保持<span class="italic-word">好奇</span>。</span></h1>
-        <p class="hero-subtitle">写代码，也写生活。<br>把脑海里的奇思妙想，变成这个世界的一小部分。</p>
-        <div class="hero-cta"><a class="primary-button" href="#journal">探索我的宇宙 ${icon('arrow')}</a><button class="text-button" data-open="about">认识一下 ${icon('right')}</button></div>
-        <div class="hero-note"><span class="note-cross">✳</span><span>灵感在漂浮，好奇心永不下线。</span><span class="note-handwriting">stay curious</span></div>
+        <div class="eyebrow"><span class="live-dot"></span> THE CURIOUS OBSERVATORY <span class="eyebrow-rule"></span></div>
+        <div class="hero-preface">A little wild. A little wonder.</div><h1 id="hero-title">让好奇，<br><span class="serif-title">野蛮<span class="italic-word">生长</span>。</span></h1>
+        <p class="hero-subtitle">这里有代码里的浪漫，也有生活里的天马行空。<br>欢迎降落，和我一起收集这个世界的微光。</p>
+        <div class="hero-cta"><a class="primary-button" href="#journal">翻开我的手记 ${icon('arrow')}</a><button class="text-button" data-open="about">认识一下 ${icon('right')}</button></div>
+        <div class="hero-note"><span class="note-cross">✳</span><span>自由记录，不设边界。</span><span class="note-handwriting">a journal of small wonders</span></div>
       </div>
-      <div class="hero-art" id="hero-art" role="img" aria-label="实时旋转的珠光流体雕塑，环绕着星轨与光点">
-        <div class="art-grid"></div>
+      <div class="hero-art" id="hero-art" role="img" aria-label="漂浮的翡翠花园星球，实时星轨与萤火粒子环绕">
+        <div class="art-grid"></div><div class="celestial-dial" aria-hidden="true"><span>N</span><span>E</span><span>S</span><span>W</span></div>
         <canvas id="hero-canvas" aria-hidden="true"></canvas>
-        <div class="orbit-caption"><span class="live-dot"></span> LIVE IN MY OWN ORBIT</div>
-        <div class="glass-note glass-note-top"><span class="small-star">✧</span><div>把想象力放出来<small>Ideas have no gravity.</small></div></div>
-        <div class="glass-note glass-note-bottom">${icon('code')}<span>code. create. repeat.</span></div>
-        <div class="art-coordinate">EST. 2026 <span>↗</span> ALWAYS EXPLORING</div>
+        <div class="scene-skeleton" id="scene-loading" role="status"><span>正在搭建这片小宇宙……</span></div>
+        <div class="orbit-caption"><span class="live-dot"></span> PLANET NO. 001 / GARDEN OF CURIOSITY</div>
+        <div class="glass-note glass-note-top"><span class="small-star">✧</span><div>好奇心温室<small>Something wonderful is growing.</small></div></div>
+        <div class="glass-note glass-note-bottom">${icon('code')}<span>此地引力很小，想象力很大。</span></div>
+        <div class="art-coordinate">22° N / 114° E <span>✧</span> IMAGINARY COORDINATES</div>
         <span class="art-star star-one">✦</span><span class="art-star star-two">✧</span>
       </div>
       <div class="hero-bottom"><a href="#journal" class="scroll-hint"><span class="mouse-shape"></span> 向下滚动，发现更多</a><div class="hero-topics"><span>CREATIVE CODING</span><b>✳</b><span>DESIGN</span><b>✳</b><span>LITTLE THINGS</span></div><span class="edition">VOL. 01 / 2026</span></div>
     </section>
 
-    <section class="journal shell" id="journal" aria-labelledby="journal-title">
-      <div class="section-heading"><div><div class="section-kicker">THE JOURNAL <span>01 —</span></div><h2 id="journal-title">最近在想<span class="heading-star">✳</span></h2></div><p>一些思考，一些实验。<br>还有一些，生活留下的痕迹。</p><button class="text-button all-posts">全部文章 ${icon('arrow')}</button></div>
+    <div class="orbit-ribbon" aria-hidden="true"><span>CODE WITH CURIOSITY</span><i>✧</i><span>LIVE WITH WONDER</span><i>✧</i><span>STAY A LITTLE WILD</span><i>✧</i><span>MAKE SOMETHING LOVELY</span></div><section class="journal shell" id="journal" aria-labelledby="journal-title">
+      <div class="section-heading"><div><div class="section-kicker">CHAPTER 01 <span>— FIELD NOTES</span></div><h2 id="journal-title">拾光手记<span class="heading-star">✳</span><em>Collected wonders.</em></h2></div><p>从代码的缝隙，到日常的角落。<br>每一次记录，都是一次小小的发现。</p><button class="text-button all-posts">全部文章 ${icon('arrow')}</button></div>
       <div class="filter-row"><div class="filter-tabs" role="group" aria-label="文章分类">${['全部文章','代码实验','设计灵感','生活碎片','我的收藏'].map((x,i)=>`<button class="filter ${i===0?'selected':''}" data-filter="${x}" aria-pressed="${i===0}">${x}${i===0?'<span>06</span>':''}</button>`).join('')}</div><span class="tilt-hint">${icon('flip')} 悬停，让灵感转个身</span></div>
       <div class="article-grid" id="article-grid"></div>
       <div class="journal-bottom"><span id="article-count"></span><button class="text-button" id="load-more">再看一些 ${icon('right')}</button></div>
     </section>
 
     <section class="playground shell" id="playground">
-      <div class="playground-card"><div class="playground-label">${icon('spark')} THE PLAYGROUND</div><h2>认真生活，<br><span>也认真玩。</span></h2><p>这里存放着那些「要不试试看」的念头。<br>给宇宙换一种颜色，或者陪小柯基踢一会儿球。</p><button class="primary-button secondary" id="remix">给宇宙换个心情 ${icon('spark')}</button><div class="playground-orbit" aria-hidden="true"><div></div><div></div><div></div><span>PLAY<br><i>is a way of learning.</i></span></div><span class="lab-caption">NO RULES. JUST CURIOSITY. ↗</span></div>
+      <div class="playground-card"><div class="playground-label">${icon('spark')} CHAPTER 02 / THE PLAYGROUND</div><h2>宇宙很大，<br><span>玩心别丢。</span></h2><p>这里存放着那些「要不试试看」的念头。<br>给宇宙换一种颜色，或者陪小柯基踢一会儿球。</p><button class="primary-button secondary" id="remix">给宇宙换个心情 ${icon('spark')}</button><div class="playground-orbit" aria-hidden="true"><div></div><div></div><div></div><span>Stay<br><b>wild.</b><i>There is magic in the ordinary.</i></span></div><span class="lab-caption">NO RULES. JUST CURIOSITY. ↗</span></div>
     </section>
     <section class="closing shell"><span class="closing-spark">✳</span><p>世界很大，<span>很高兴在这里遇见你。</span></p><button class="text-button" data-open="about">保持好奇，保持联系 ${icon('arrow')}</button></section>
   </main>
@@ -89,7 +95,8 @@ function bindTilt(){
 renderArticles();
 let toastTimer;
 function toast(message){const el=document.querySelector('#toast');el.textContent=message;el.classList.add('visible');clearTimeout(toastTimer);toastTimer=setTimeout(()=>el.classList.remove('visible'),2800)}
-function toggleSave(id){saved.has(id)?saved.delete(id):saved.add(id);writeStore('offbeat-saved',[...saved]);toast(saved.has(id)?'已把这份灵感收进书签。':'已取消收藏。');document.querySelectorAll(`[data-save="${id}"]`).forEach(b=>{b.classList.toggle('is-saved',saved.has(id));b.setAttribute('aria-pressed',saved.has(id));b.setAttribute('aria-label',`${saved.has(id)?'取消收藏':'收藏'}：${articles.find(a=>a.id===id).title}`)});if(filter==='我的收藏')renderArticles()}
+function showStorageError(){document.querySelector('#storage-error').hidden=false}
+function toggleSave(id){saved.has(id)?saved.delete(id):saved.add(id);const persisted=writeStore('offbeat-saved',[...saved]);toast(persisted?(saved.has(id)?'已把这份灵感收进书签。':'已取消收藏。'):'收藏仅在本次浏览中有效，未能保存到浏览器。');document.querySelectorAll(`[data-save="${id}"]`).forEach(b=>{b.classList.toggle('is-saved',saved.has(id));b.setAttribute('aria-pressed',saved.has(id));b.setAttribute('aria-label',`${saved.has(id)?'取消收藏':'收藏'}：${articles.find(a=>a.id===id).title}`)});if(filter==='我的收藏')renderArticles()}
 function openDialog(id){const d=document.querySelector(`#${id}-dialog`);if(!d.open){d.showModal();document.body.classList.add('dialog-open')}}
 function openArticle(id){const a=articles.find(a=>a.id===id);if(!a)return;document.querySelector('#search-dialog').close();document.querySelector('#reader-content').innerHTML=`<div class="section-kicker">${a.tag}</div><h2>${a.title}</h2><div class="reader-meta"><span>${a.category}</span><span>${a.date}</span><span>${a.minutes} 分钟阅读</span><button class="icon-button save-button ${saved.has(id)?'is-saved':''}" data-save="${id}" aria-label="收藏：${a.title}" aria-pressed="${saved.has(id)}">${icon('book')}</button></div><p class="reader-lead">${a.subtitle}</p><div class="reader-body">${a.body.map(([h,p])=>`<h3>${h}</h3><p>${p}</p>`).join('')}</div><div class="reader-end">✳ <span>谢谢你读到这里。愿好奇心与你同在。</span></div><div class="demo-note">原创示例文章 · 可在 src/articles.js 中替换为你的内容</div><button class="text-button next-article" data-read="${articles[(articles.indexOf(a)+1)%articles.length].id}">下一篇 · ${articles[(articles.indexOf(a)+1)%articles.length].title} ${icon('arrow')}</button>`;openDialog('reader');document.querySelector('#reader-dialog').scrollTop=0}
 document.addEventListener('click',e=>{
@@ -114,14 +121,48 @@ document.querySelector('#motion-toggle').addEventListener('click',()=>{updateMot
 reduced.addEventListener('change',e=>{if(e.matches)updateMotion(false)});
 let audioContext,audioGain;
 document.querySelector('.sound-toggle').addEventListener('click',async()=>{
+ const control=document.querySelector('.sound-toggle');control.disabled=true;control.setAttribute('aria-busy','true');
  try{if(!audioContext){audioContext=new AudioContext();audioGain=audioContext.createGain();audioGain.gain.value=0;audioGain.connect(audioContext.destination);[130.81,196,261.63,329.63].forEach((freq,i)=>{const o=audioContext.createOscillator(),g=audioContext.createGain();o.type='sine';o.frequency.value=freq;g.gain.value=.025/(i+1);o.connect(g).connect(audioGain);o.start()})}await audioContext.resume();sound=!sound;audioGain.gain.setTargetAtTime(sound?.5:0,audioContext.currentTime,.8);const b=document.querySelector('.sound-toggle');b.innerHTML=icon(sound?'volume':'muted');b.setAttribute('aria-pressed',sound);b.setAttribute('aria-label',sound?'关闭环境音':'开启环境音');b.title=sound?'关闭环境音':'开启环境音';toast(sound?'环境音已开启 · 一点点宇宙的声音':'环境音已关闭')}catch{toast('当前浏览器暂不支持环境音。')}
+ finally{control.disabled=false;control.setAttribute('aria-busy','false')}
 });
-document.addEventListener('visibilitychange',()=>{if(audioContext){if(document.hidden)audioContext.suspend();else if(sound)audioContext.resume()}});
+document.addEventListener('visibilitychange',()=>{if(audioContext){const transition=document.hidden?audioContext.suspend():sound?audioContext.resume():null;transition?.catch(()=>toast('环境音暂时不可用，可以再次尝试开启。'))}});
 let petCount=0,petTimer;
 document.querySelector('#pet-action').addEventListener('click',()=>{petCount++;world?.kick();const lines=['接住啦！再来一脚！','汪！这球传得漂亮！','短腿也有足球梦！','球可以停，好奇心不可以！'];const bubble=document.querySelector('#pet-bubble');bubble.innerHTML=`${lines[(petCount-1)%lines.length]}<span>我们已经传了 ${petCount} 次球</span>`;bubble.classList.add('talking');clearTimeout(petTimer);petTimer=setTimeout(()=>bubble.classList.remove('talking'),4000)});
 document.querySelector('#pet-minimize').addEventListener('click',()=>{document.querySelector('#pet').hidden=true;document.querySelector('#pet-restore').hidden=false});
 document.querySelector('#pet-restore').addEventListener('click',()=>{document.querySelector('#pet').hidden=false;document.querySelector('#pet-restore').hidden=true});
-let mood=0;document.querySelector('#remix').addEventListener('click',()=>{mood=(mood+1)%3;document.body.dataset.mood=String(mood);world?.setMood(mood);toast(['此刻的宇宙：玫瑰星云','此刻的宇宙：薄荷漫游','此刻的宇宙：落日来信'][mood]);document.querySelector('.hero').scrollIntoView({behavior:motion?'smooth':'instant'})});
+let mood=0;document.querySelector('#remix').addEventListener('click',()=>{mood=(mood+1)%3;document.body.dataset.mood=String(mood);world?.setMood(mood);toast(['此刻的宇宙：翡翠花园','此刻的宇宙：薄荷夜游','此刻的宇宙：落日温室'][mood]);document.querySelector('.hero').scrollIntoView({behavior:motion?'smooth':'instant'})});
 window.addEventListener('scroll',()=>{const max=document.documentElement.scrollHeight-innerHeight;document.querySelector('#reading-progress').style.width=`${max>0?scrollY/max*100:0}%`},{passive:true});
 const navObserver=new IntersectionObserver(entries=>{for(const entry of entries){if(entry.isIntersecting){const href=entry.target.id?`#${entry.target.id}`:'#';document.querySelectorAll('.main-nav a').forEach(a=>a.classList.toggle('active',a.getAttribute('href')===href))}}},{rootMargin:'-15% 0px -55% 0px'});document.querySelectorAll('.hero,#journal,#playground').forEach(el=>navObserver.observe(el));
-try{world=startWorld({motion});}catch(error){console.warn('3D enhancement unavailable:',error);document.body.classList.add('no-webgl');document.querySelector('.pet-fallback').hidden=false;document.querySelector('#hero-art').setAttribute('aria-label','珠光星球插画（当前设备使用静态模式）')}
+document.querySelector('#dismiss-storage-error').addEventListener('click',()=>document.querySelector('#storage-error').hidden=true);
+if(storageWarning)showStorageError();
+let scenePending=false;
+function setSceneState(state){
+ document.body.dataset.scene=state;
+ document.querySelector('#hero-art').setAttribute('aria-busy',state==='loading');
+ document.querySelector('#scene-loading').hidden=state!=='loading';
+ document.querySelector('#retry-scene').disabled=state==='loading';
+ document.querySelector('#remix').disabled=state!=='ready';
+ document.querySelector('#motion-toggle').disabled=state!=='ready';
+ document.querySelector('#pet-action').disabled=state==='loading';
+ document.querySelector('#scene-error').hidden=state!=='error';
+ document.body.classList.toggle('no-webgl',state==='error');
+ document.querySelector('.pet-fallback').hidden=state!=='error';
+}
+function sceneFailure(error){
+ console.warn('3D enhancement unavailable:',error);
+ scenePending=false;world?.dispose();world=undefined;
+ setSceneState('error');
+ document.querySelector('#scene-error span').textContent='立体场景暂时没有加载成功。已切换为静态画面，文章仍可正常阅读。';
+ document.querySelector('#hero-art').setAttribute('aria-label','翡翠花园星球插画（静态模式）');
+}
+async function initializeScene(){
+ if(scenePending)return;
+ if(document.body.dataset.scene==='error')document.querySelectorAll('#hero-canvas,#pet-canvas,[data-art]').forEach(canvas=>canvas.replaceWith(canvas.cloneNode(false)));
+ scenePending=true;setSceneState('loading');
+ try{
+  const {startWorld}=await import('./world.js');
+  world=startWorld({motion,onReady:()=>{scenePending=false;setSceneState('ready');document.querySelector('#hero-art').setAttribute('aria-label','漂浮的翡翠花园星球，实时星轨与萤火粒子环绕')},onError:sceneFailure});
+ }catch(error){sceneFailure(error)}
+}
+document.querySelector('#retry-scene').addEventListener('click',initializeScene);
+initializeScene();

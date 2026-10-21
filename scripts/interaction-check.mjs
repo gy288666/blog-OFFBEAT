@@ -6,7 +6,10 @@ const page=await context.newPage(),errors=[],checks=[];
 page.on('pageerror',e=>errors.push(e.message));
 const check=(name,value)=>{assert.ok(value,name);checks.push(name)};
 try {
+ if(process.env.CHECK_MODE!=='loading') {
+ if(process.env.CHECK_MODE!=='recovery') {
  await page.goto('http://127.0.0.1:5173/',{waitUntil:'networkidle'});
+ await page.waitForFunction(()=>document.body.dataset.scene==='ready');
  check('WebGL initializes',await page.locator('body').evaluate(e=>!e.classList.contains('no-webgl')));
  check('Three initial articles',await page.locator('.article-card').count()===3);
  await page.locator('#motion-toggle').click();
@@ -64,9 +67,47 @@ try {
  const reduced=await reduceContext.newPage();await reduced.goto('http://127.0.0.1:5173/',{waitUntil:'networkidle'});
  check('Respects reduced motion',await reduced.locator('body').evaluate(e=>e.classList.contains('still')));
  await reduceContext.close();
- const fallbackContext=await browser.newContext();await fallbackContext.addInitScript(()=>{const get=HTMLCanvasElement.prototype.getContext;HTMLCanvasElement.prototype.getContext=function(type,...args){if(type==='webgl'||type==='webgl2'||type==='experimental-webgl')return null;return get.call(this,type,...args)}});
+ }
+ const fallbackContext=await browser.newContext();await fallbackContext.addInitScript(()=>{window.blockWebGL=true;const get=HTMLCanvasElement.prototype.getContext;HTMLCanvasElement.prototype.getContext=function(type,...args){if(window.blockWebGL&&(type==='webgl'||type==='webgl2'||type==='experimental-webgl'))return null;return get.call(this,type,...args)}});
  const fallback=await fallbackContext.newPage();await fallback.goto('http://127.0.0.1:5173/',{waitUntil:'networkidle'});
+ await fallback.waitForFunction(()=>document.body.dataset.scene==='error');
  check('WebGL fallback activates',await fallback.locator('body').evaluate(e=>e.classList.contains('no-webgl')));
- await fallback.locator('.card-title').first().click();check('Reading still works without WebGL',await fallback.locator('#reader-dialog').isVisible());await fallbackContext.close();
+ check('Failure has a recovery banner',await fallback.locator('#scene-error').isVisible());
+ check('Unavailable 3D controls disabled',await fallback.locator('#remix').isDisabled());
+ await fallback.locator('.card-title').first().click();check('Reading still works without WebGL',await fallback.locator('#reader-dialog').isVisible());
+ await fallback.keyboard.press('Escape');await fallback.evaluate(()=>window.blockWebGL=false);await fallback.locator('#retry-scene').click();
+ await fallback.waitForFunction(()=>document.body.dataset.scene==='ready');
+ check('Retry recovers WebGL',!(await fallback.locator('#remix').isDisabled()));
+ check('Recovered scene clears banner',!(await fallback.locator('#scene-error').isVisible()));
+ await fallbackContext.close();
+ const storageContext=await browser.newContext({reducedMotion:'reduce'});
+ await storageContext.addInitScript(()=>{Storage.prototype.setItem=()=>{throw new DOMException('Denied','QuotaExceededError')}});
+ const storage=await storageContext.newPage();await storage.goto('http://127.0.0.1:5173/',{waitUntil:'networkidle'});
+ await storage.locator('[data-save="light"]').click();
+ check('Storage failure reported',await storage.locator('#storage-error').isVisible());
+ check('Does not claim persistence',(await storage.locator('#toast').textContent()).includes('未能保存'));
+ await storage.locator('[data-filter="我的收藏"]').click();
+ check('Session bookmarks survive storage failure',await storage.locator('.article-card').count()===1);
+ await storageContext.close();
+ }
+ const pendingContext=await browser.newContext({reducedMotion:'reduce'});
+ const pending=await pendingContext.newPage();let release;
+ const gate=new Promise(resolve=>release=resolve);
+ await pending.route('**/src/world.js',async route=>{await gate;await route.continue()});
+ await pending.goto('http://127.0.0.1:5173/',{waitUntil:'domcontentloaded'});
+ await pending.waitForFunction(()=>document.body.dataset.scene==='loading');
+ check('Real module load shows skeleton',await pending.locator('#scene-loading').isVisible());
+ check('Pending scene reports busy',await pending.locator('#hero-art').getAttribute('aria-busy')==='true');
+ check('Pending scene controls disabled',await pending.locator('#remix').isDisabled());
+ await pending.locator('.card-title').first().click();
+ check('Reading works during 3D load',await pending.locator('#reader-dialog').isVisible());
+ await pending.keyboard.press('Escape');release();await pending.waitForFunction(()=>document.body.dataset.scene==='ready');
+ check('Skeleton clears after real rendering',!(await pending.locator('#scene-loading').isVisible()));
+ await pending.evaluate(()=>document.querySelector('#hero-canvas').getContext('webgl2').getExtension('WEBGL_lose_context').loseContext());
+ await pending.waitForFunction(()=>document.body.dataset.scene==='error');
+ check('Runtime context loss has recoverable state',await pending.locator('#scene-error').isVisible());
+ await pending.locator('#retry-scene').click();await pending.waitForFunction(()=>document.body.dataset.scene==='ready');
+ check('Fresh canvases recover lost context',!(await pending.locator('#scene-error').isVisible()));
+ await pendingContext.close();
  console.log(JSON.stringify({passed:checks.length,checks,errors},null,2));
 }finally{await browser.close()}
