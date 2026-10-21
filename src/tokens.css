@@ -1,0 +1,14 @@
+:root {
+  --bg: #100f15;
+  --surface: #1a1822;
+  --ink: #f5f1ed;
+  --muted: #a5a0b1;
+  --pink: #edb4d0;
+  --mint: #d5efb1;
+  --line: rgba(245,241,237,.12);
+  --glass: rgba(36,31,45,.58);
+  --radius: 24px;
+  --font: 'Segoe UI', 'Microsoft YaHei', sans-serif;
+  --display: 'Arial', 'Microsoft YaHei', sans-serif;
+  --mono: 'Cascadia Code', 'Consolas', monospace;
+}
