@@ -1,6 +1,6 @@
 import {readFileSync} from 'node:fs';
 import assert from 'node:assert/strict';
-const sheets=['src/style.css','src/observatory.css'];
+const sheets=['src/style.css','src/observatory.css','src/site-scene.css','src/immersive.css'];
 for(const file of sheets){
  const source=readFileSync(file,'utf8');
  assert.ok(!/#[0-9a-f]{3,8}\b|\brgba?\(/i.test(source),`${file}: use semantic color tokens`);

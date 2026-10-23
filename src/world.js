@@ -1,3 +1,5 @@
+import { createCorgiBehavior } from './corgi-behavior.js';
+import { makeStarfield } from './starfield.js';
 import { makeObservatory } from './observatory.js';
 import * as THREE from 'three';
 import { RoomEnvironment } from 'three/addons/environments/RoomEnvironment.js';
@@ -27,39 +29,60 @@ function makeThumb(canvas){
 }
 
 function makePet(){
- const canvas=document.querySelector('#pet-canvas'),r=renderer(canvas),scene=new THREE.Scene(),camera=new THREE.PerspectiveCamera(26,1,.1,50);camera.position.set(2,1.75,5);camera.lookAt(.1,.82,0);lighting(scene);const env=environment(r,scene);r.toneMappingExposure=.86;
- const mat=(color,roughness=.7)=>new THREE.MeshStandardMaterial({color,roughness});const tan=mat(0xd89446),lightTan=mat(0xe8ad62),cream=mat(0xfff3dc),dark=mat(0x30222a,.25),pink=mat(0xe99e9e),pawMat=mat(0xf5e5cc);
+ const canvas=document.querySelector('#pet-canvas'),r=renderer(canvas),scene=new THREE.Scene(),camera=new THREE.PerspectiveCamera(30,1,.1,50);
+ camera.position.set(1.65,1.65,5.2);camera.lookAt(.15,.85,0);
+ scene.add(new THREE.HemisphereLight(0xffecd0,0x274637,1.7));
+ const key=new THREE.DirectionalLight(0xffe8c4,2.6);key.position.set(-3,5,5);scene.add(key);
+ const rim=new THREE.DirectionalLight(0xd7f6e8,2.2);rim.position.set(3,3,-3);scene.add(rim);
+ const env=environment(r,scene);r.toneMappingExposure=.85;
+ const mat=(color,roughness=.7)=>new THREE.MeshStandardMaterial({color,roughness,envMapIntensity:.35});
+ const tan=mat(0xb85919),lightTan=mat(0xd77c26),cream=mat(0xffe8bb),dark=mat(0x211c18,.25),pink=mat(0xce7770),pawMat=mat(0xf9dbab),forest=mat(0x145647),gold=mat(0xdca842,.32);
  const dog=new THREE.Group();dog.position.set(-.42,0,0);dog.rotation.y=-.14;scene.add(dog);
- function ell(parent,material,pos,scale){const mesh=new THREE.Mesh(new THREE.SphereGeometry(1,24,20),material);mesh.position.set(...pos);mesh.scale.set(...scale);parent.add(mesh);return mesh}
- ell(dog,tan,[0,.53,-.13],[.42,.38,.65]);ell(dog,cream,[0,.49,.29],[.31,.33,.27]);
- const legs=[];for(const x of [-.27,.27])for(const z of [-.42,.31]){const leg=new THREE.Group();leg.position.set(x,.29,z);dog.add(leg);ell(leg,tan,[0,-.025,0],[.13,.21,.14]);ell(leg,pawMat,[0,-.15,.055],[.14,.095,.17]);legs.push(leg)}
- const head=new THREE.Group();head.position.set(0,.98,.42);dog.add(head);ell(head,lightTan,[0,0,0],[.48,.4,.36]);
- // The broad forehead, upright ears, white blaze and short paws establish the corgi silhouette.
- function ear(x,rotate){const ear=new THREE.Group();ear.position.set(x,.27,-.035);ear.rotation.z=rotate;head.add(ear);const shape=new THREE.Shape();shape.moveTo(-.19,0);shape.quadraticCurveTo(-.23,.2,-.06,.51);shape.quadraticCurveTo(.0,.58,.05,.47);shape.quadraticCurveTo(.18,.2,.17,0);shape.closePath();const g=new THREE.ExtrudeGeometry(shape,{depth:.1,bevelEnabled:true,bevelSegments:3,steps:1,bevelSize:.035,bevelThickness:.04,curveSegments:16});const outer=new THREE.Mesh(g,tan);ear.add(outer);const inner=new THREE.Mesh(new THREE.ShapeGeometry(shape),pink);inner.scale.set(.64,.74,1);inner.position.set(0,.04,.151);ear.add(inner);return ear}const earL=ear(-.31,.2),earR=ear(.31,-.2);
- ell(head,cream,[0,.03,.319],[.085,.31,.045]);ell(head,cream,[-.15,-.17,.286],[.22,.17,.145]);ell(head,cream,[.15,-.17,.286],[.22,.17,.145]);ell(head,dark,[0,-.12,.432],[.105,.071,.065]);
- const eyes=[];for(const x of [-.235,.235]){ell(head,tan,[x,.015,.299],[.118,.11,.06]);const eye=ell(head,dark,[x,.01,.351],[.055,.071,.034]);eyes.push(eye);ell(head,cream,[x-.014,.034,.38],[.017,.022,.01]);ell(head,pink,[x*1.2,-.12,.314],[.055,.025,.022])}
- ell(head,dark,[0,-.255,.347],[.115,.068,.043]);const tongue=ell(head,pink,[0,-.302,.374],[.063,.078,.029]);
- const collar=new THREE.Mesh(new THREE.TorusGeometry(.31,.035,10,40),mat(0x99b9a9));collar.rotation.x=Math.PI/2;collar.position.set(0,.7,.28);dog.add(collar);const tag=ell(dog,mat(0xe7c780,.35),[0,.65,.55],[.052,.065,.02]);
- const tail=new THREE.Group();tail.position.set(0,.64,-.68);dog.add(tail);ell(tail,tan,[0,.07,-.02],[.14,.2,.14]);ell(tail,cream,[0,.18,-.02],[.11,.1,.11]);
+ function ell(parent,material,pos,scale){const mesh=new THREE.Mesh(new THREE.SphereGeometry(1,32,24),material);mesh.position.set(...pos);mesh.scale.set(...scale);parent.add(mesh);return mesh}
+ // A low loaf-shaped body and large wedge ears keep the silhouette recognisably corgi.
+ ell(dog,tan,[0,.49,-.18],[.51,.38,.72]);ell(dog,cream,[0,.45,.36],[.37,.32,.26]);
+ const legs=[];for(const x of [-.33,.33])for(const z of [-.48,.34]){const leg=new THREE.Group();leg.position.set(x,.24,z);dog.add(leg);ell(leg,tan,[0,0,0],[.17,.19,.18]);ell(leg,pawMat,[0,-.12,.08],[.18,.11,.22]);legs.push(leg)}
+ const head=new THREE.Group();head.position.set(0,.98,.42);dog.add(head);ell(head,lightTan,[0,0,0],[.59,.43,.4]);
+ function ear(x,rotate){const ear=new THREE.Group();ear.position.set(x,.25,-.05);ear.rotation.z=rotate;head.add(ear);const shape=new THREE.Shape();shape.moveTo(-.23,0);shape.quadraticCurveTo(-.27,.12,-.12,.39);shape.quadraticCurveTo(-.08,.48,.0,.42);shape.quadraticCurveTo(.22,.23,.23,0);shape.closePath();const g=new THREE.ExtrudeGeometry(shape,{depth:.12,bevelEnabled:true,bevelSegments:4,steps:1,bevelSize:.045,bevelThickness:.045,curveSegments:20});ear.add(new THREE.Mesh(g,tan));const inner=new THREE.Mesh(new THREE.ShapeGeometry(shape),pink);inner.scale.set(.65,.66,1);inner.position.set(0,.055,.171);ear.add(inner);return ear}
+ const earL=ear(-.41,.2),earR=ear(.41,-.2);
+ ell(head,cream,[0,.09,.36],[.105,.3,.065]);
+ for(const x of [-1,1]){
+  const cheek=ell(head,cream,[x*.3,-.18,.29],[.29,.22,.18]);cheek.rotation.z=x*.15;
+  ell(head,cream,[x*.47,-.12,.14],[.16,.12,.13]);
+  const brow=ell(head,cream,[x*.255,.16,.344],[.09,.035,.025]);brow.rotation.z=x*.16;
+ }
+ const eyes=[];for(const x of [-.255,.255]){const eye=ell(head,dark,[x,.045,.385],[.079,.095,.041]);eye.userData.openHeight=.095;eyes.push(eye);ell(eye,cream,[-.24,.36,.87],[.3,.27,.22]);ell(eye,cream,[.3,-.24,.91],[.12,.12,.12]);ell(head,pink,[x*1.43,-.12,.424],[.065,.028,.015])}
+ ell(head,dark,[0,-.245,.42],[.13,.085,.035]);
+ const tongue=ell(head,pink,[0,-.298,.456],[.07,.078,.023]);
+ ell(head,cream,[-.115,-.16,.4],[.16,.11,.12]);ell(head,cream,[.115,-.16,.4],[.16,.11,.12]);
+ const nose=ell(head,dark,[0,-.105,.514],[.108,.073,.06]);ell(nose,cream,[-.3,.37,.8],[.22,.12,.06]);
+ // Tailored forest cape with an asymmetric fold, fastened by a small brass star.
+ const capeShape=new THREE.Shape();capeShape.moveTo(-.32,.73);capeShape.bezierCurveTo(-.6,.65,-.6,.39,-.52,.32);capeShape.quadraticCurveTo(0,.2,.52,.32);capeShape.bezierCurveTo(.6,.39,.6,.65,.32,.73);capeShape.closePath();
+ const cape=new THREE.Mesh(new THREE.ExtrudeGeometry(capeShape,{depth:.65,bevelEnabled:true,bevelSize:.035,bevelThickness:.035,bevelSegments:3,steps:1}),forest);cape.position.z=-.59;dog.add(cape);
+ const collar=new THREE.Mesh(new THREE.TorusGeometry(.37,.065,12,48),forest);collar.rotation.x=Math.PI/2;collar.position.set(0,.7,.25);dog.add(collar);
+ const star=new THREE.Shape();for(let i=0;i<10;i++){const angle=Math.PI/2+i*Math.PI/5,rad=i%2?.045:.095;const x=Math.cos(angle)*rad,y=Math.sin(angle)*rad;i?star.lineTo(x,y):star.moveTo(x,y)}star.closePath();
+ const tag=new THREE.Mesh(new THREE.ExtrudeGeometry(star,{depth:.025,bevelEnabled:true,bevelSize:.01,bevelThickness:.01,bevelSegments:2}),gold);tag.position.set(.12,.59,.59);tag.rotation.z=-.16;dog.add(tag);
+ const tail=new THREE.Group();tail.position.set(0,.62,-.83);dog.add(tail);ell(tail,tan,[0,.07,-.02],[.18,.2,.16]);ell(tail,cream,[0,.19,-.02],[.14,.11,.13]);
  const ball=new THREE.Group();scene.add(ball);const ballSphere=new THREE.Mesh(new THREE.SphereGeometry(.235,32,24),mat(0xf7efe1,.45));ball.add(ballSphere);const ico=new THREE.IcosahedronGeometry(1,0);const vertices=ico.attributes.position;const seen=new Set();for(let i=0;i<vertices.count;i++){const v=new THREE.Vector3().fromBufferAttribute(vertices,i).normalize();const key=v.toArray().map(x=>x.toFixed(2)).join();if(seen.has(key))continue;seen.add(key);const patch=new THREE.Mesh(new THREE.CircleGeometry(.071,5),dark);patch.position.copy(v.multiplyScalar(.232));patch.quaternion.setFromUnitVectors(new THREE.Vector3(0,0,1),v.normalize());ball.add(patch)}ico.dispose();ball.position.set(1.05,.255,.44);
  const shadowTex=(()=>{const c=document.createElement('canvas');c.width=128;c.height=128;const ctx=c.getContext('2d'),grad=ctx.createRadialGradient(64,64,3,64,64,64);grad.addColorStop(0,'rgba(13,8,18,.5)');grad.addColorStop(1,'rgba(13,8,18,0)');ctx.fillStyle=grad;ctx.fillRect(0,0,128,128);return new THREE.CanvasTexture(c)})();const shadow=new THREE.Mesh(new THREE.PlaneGeometry(2.3,1.7),new THREE.MeshBasicMaterial({map:shadowTex,transparent:true,depthWrite:false}));shadow.rotation.x=-Math.PI/2;shadow.position.set(-.3,.01,0);scene.add(shadow);const ballShadow=new THREE.Mesh(new THREE.CircleGeometry(.3,32),new THREE.MeshBasicMaterial({color:0x1b1323,transparent:true,opacity:.2,depthWrite:false}));ballShadow.rotation.x=-Math.PI/2;ballShadow.position.set(1.05,.012,.44);scene.add(ballShadow);
- let kickStart=-99,lastTime=0;
- return {host:canvas,kick(){kickStart=lastTime},render(t,moving){size(r,camera);lastTime=t;if(moving){const phase=(t%5.5)/5.5;const kick=phase<.18?Math.sin(phase/.18*Math.PI):0;const excitement=Math.max(0,1-(t-kickStart)/2);dog.position.x=-.42+Math.sin(t*1.14)*.1;dog.position.y=Math.abs(Math.sin(t*2.28))*.012+excitement*Math.abs(Math.sin(t*9))*.06;head.rotation.z=Math.sin(t*.8)*.06+excitement*Math.sin(t*5)*.12;head.rotation.y=.08+Math.sin(t*.7)*.08;tail.rotation.z=Math.sin(t*(excitement?17:9))*.4;earL.rotation.z=.2+Math.sin(t*2)*.035;earR.rotation.z=-.2+Math.sin(t*2+.7)*.035;legs[3].rotation.x=-kick*.8-excitement*Math.max(0,Math.sin(t*9))*.6;legs[1].rotation.x=Math.sin(t*2.2)*.07;const blink=t%4.8>4.65?.12:1;eyes.forEach(eye=>eye.scale.y=.071*blink);tongue.scale.y=.078+Math.sin(t*2)*.007;ball.position.x=.8+Math.sin(phase*Math.PI)*.6;ball.position.y=.255+Math.sin(phase*Math.PI)*.13+excitement*Math.abs(Math.sin((t-kickStart)*5))*.45;ball.position.z=.45+Math.sin(phase*Math.PI)*.12;ball.rotation.z=-t*1.3-excitement*(t-kickStart)*4;ball.rotation.x=t*.5;ballShadow.position.x=ball.position.x;ballShadow.position.z=ball.position.z;ballShadow.material.opacity=.23-(ball.position.y-.255)*.2}r.render(scene,camera)},dispose(){disposeScene(scene);env.dispose();shadowTex.dispose();r.dispose()}};
+ const behavior=createCorgiBehavior({canvas,dog,head,legs,eyes,ears:[earL,earR],tail,tongue,ball,shadow,ballShadow});
+ return {host:canvas,kick:behavior.kick,pat:behavior.pat,render(t,moving){size(r,camera);behavior.update(t,moving);r.render(scene,camera)},dispose(){behavior.dispose();disposeScene(scene);env.dispose();shadowTex.dispose();r.dispose();r.forceContextLoss()}};
+
 }
 
 export function startWorld({motion=true,onReady=()=>{},onError=()=>{}}={}){
  let active=motion,thumbs=[],disposed=false,frame=0,time=0,last=performance.now(),force=true,ready=false;
- const hero=makeHero();let pet;try{pet=makePet()}catch(error){hero.dispose();throw error}const visible=new Map();
+ const hero=makeHero();let pet;try{pet=makePet()}catch(error){hero.dispose();throw error}let background;try{background=makeStarfield()}catch(error){hero.dispose();pet.dispose();throw error}const visible=new Map();
  const observer=new IntersectionObserver(entries=>entries.forEach(e=>{visible.set(e.target,e.isIntersecting);force=true}),{rootMargin:'100px'});observer.observe(hero.host);observer.observe(pet.host);
  function addThumbnails(){document.querySelectorAll('[data-art]').forEach(canvas=>{try{const thumb=makeThumb(canvas);thumbs.push(thumb);observer.observe(canvas)}catch(error){console.warn('Thumbnail unavailable',error)}});force=true}
  function clearThumbnails(){for(const thumb of thumbs){observer.unobserve(thumb.host);visible.delete(thumb.host);thumb.dispose()}thumbs=[]}
  addThumbnails();
- function draw(now){if(disposed)return;frame=requestAnimationFrame(draw);const elapsed=Math.min((now-last)/1000,.06);last=now;if(document.hidden)return;if(active)time+=elapsed;if(!active&&!force&&ready)return;if(active&&!force&&now-(draw.previous||0)<32)return;draw.previous=now;try{for(const entity of [hero,...thumbs,pet])if(visible.get(entity.host)!==false){entity.render(time,active)}force=false;if(!ready&&hero.ready!==false){ready=true;onReady()}}catch(error){onError(error)}}
+ function draw(now){if(disposed)return;frame=requestAnimationFrame(draw);const elapsed=Math.min((now-last)/1000,.06);last=now;if(document.hidden)return;if(active)time+=elapsed;if(!active&&!force&&ready)return;if(active&&!force&&now-(draw.previous||0)<32)return;draw.previous=now;try{for(const entity of [background,hero,...thumbs,pet])if(visible.get(entity.host)!==false){entity.render(time,active)}force=false;if(!ready&&hero.ready!==false){ready=true;onReady()}}catch(error){onError(error)}}
  frame=requestAnimationFrame(draw);
- const resize=()=>{force=true};window.addEventListener('resize',resize);document.addEventListener('visibilitychange',resize);
+ const resize=()=>{force=true};window.addEventListener('resize',resize);window.addEventListener('scroll',resize,{passive:true});document.addEventListener('visibilitychange',resize);
  const contextLost=e=>{e.preventDefault();queueMicrotask(()=>{if(!disposed)onError(new Error('WebGL context lost'))})};
- const canvases=[hero.host.querySelector('canvas'),pet.host];canvases.forEach(c=>c.addEventListener('webglcontextlost',contextLost));
- function dispose(){if(disposed)return;disposed=true;canvases.forEach(c=>c.removeEventListener('webglcontextlost',contextLost));cancelAnimationFrame(frame);observer.disconnect();window.removeEventListener('resize',resize);document.removeEventListener('visibilitychange',resize);clearThumbnails();hero.dispose();pet.dispose()}
+ const canvases=[background.host,hero.host.querySelector('canvas'),pet.host];canvases.forEach(c=>c.addEventListener('webglcontextlost',contextLost));
+ function dispose(){if(disposed)return;disposed=true;canvases.forEach(c=>c.removeEventListener('webglcontextlost',contextLost));cancelAnimationFrame(frame);observer.disconnect();window.removeEventListener('resize',resize);window.removeEventListener('scroll',resize);document.removeEventListener('visibilitychange',resize);clearThumbnails();hero.dispose();pet.dispose();background.dispose()}
  if(import.meta.hot)import.meta.hot.dispose(dispose);
- return {addThumbnails,clearThumbnails,setMotion(v){active=v;force=true},setMood(i){hero.mood(i);force=true},kick(){pet.kick();force=true},dispose};
+ return {pulse(){background.pulse();force=true},addThumbnails,clearThumbnails,setMotion(v){active=v;force=true},setMood(i){hero.mood(i);background.mood(i);force=true},kick(){pet.kick();force=true},pat(){pet.pat();force=true},dispose};
 }

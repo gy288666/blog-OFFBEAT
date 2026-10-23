@@ -1,6 +1,6 @@
 :root {
   color-scheme: dark;
-  --bg: #0b2421;
+  --bg: #081b18;
   --surface: #13332c;
   --surface-raised: #204237;
   --ink: #f5efd9;
@@ -43,6 +43,13 @@
   --mist: rgb(117 165 104 / 17%);
   --gold-glow: rgb(230 219 156 / 16%);
   --paper: #dfe4c4;
+  --reading-paper: #e9e3cf;
+  --reading-ink: #263b32;
+  --reading-muted: #5e6857;
+  --reading-line: rgb(38 59 50 / 22%);
+  --folio-width: 440px;
+  --folio: rgb(8 27 24 / 92%);
+  --orbit-glint: rgb(246 226 160 / 52%);
   --font: 'Segoe UI', 'Microsoft YaHei', sans-serif;
   --display: 'Arial', 'Microsoft YaHei', sans-serif;
   --mono: 'Cascadia Code', 'Consolas', monospace;

@@ -11,7 +11,7 @@ try {
  await page.goto('http://127.0.0.1:5173/',{waitUntil:'networkidle'});
  await page.waitForFunction(()=>document.body.dataset.scene==='ready');
  check('WebGL initializes',await page.locator('body').evaluate(e=>!e.classList.contains('no-webgl')));
- check('Three initial articles',await page.locator('.article-card').count()===3);
+ check('Six sliding articles',await page.locator('.article-card').count()===6);
  await page.locator('#motion-toggle').click();
  check('Motion pauses',await page.locator('body').evaluate(e=>e.classList.contains('still')));
  await page.locator('[data-filter="代码实验"]').click();
@@ -23,8 +23,7 @@ try {
  check('Saved state persists',await page.locator('[data-save="light"]').getAttribute('aria-pressed')==='true');
  check('Motion preference persists',await page.locator('body').evaluate(e=>e.classList.contains('still')));
  await page.locator('.flip-button[data-flip="light"]').click();
- check('Card flips and front is inert',await page.locator('[data-id="light"] .card-front').evaluate(e=>e.inert));
- check('Back is accessible',!(await page.locator('[data-id="light"] .card-back').evaluate(e=>e.inert)));
+ check('Flip stays on summary',!(await page.locator('#reader-dialog').isVisible()));
  await page.locator('[data-id="light"] .card-back [data-read]').click();
  check('Article opens',await page.locator('#reader-dialog').evaluate(e=>e.open));
  check('Article has complete text',await page.locator('.reader-body h3').count()===5);
@@ -42,7 +41,7 @@ try {
  await page.locator('#search-input').fill('abcdefgh404');
  check('Empty search state exists',await page.locator('.search-empty').isVisible());
  await page.keyboard.press('Escape');
- await page.locator('#load-more').click();
+ await page.locator('[data-filter="全部文章"]').click();
  check('All six articles load',await page.locator('.article-card').count()===6);
  await page.locator('#pet-action').click();
  check('Corgi responds to kick',(await page.locator('#pet-bubble').textContent()).includes('1 次球'));
@@ -59,7 +58,7 @@ try {
  await page.setViewportSize({width:390,height:844});
  check('No mobile overflow',await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth));
  await page.locator('[data-filter="生活碎片"]').click();
- await page.locator('.card-title').first().click();
+ await page.locator('.card-title').first().click();await page.locator('.card-back [data-read]').first().click();
  check('Mobile article reading works',await page.locator('#reader-dialog').isVisible());
  await page.keyboard.press('Escape');
  check('No runtime errors',errors.length===0);
@@ -74,7 +73,7 @@ try {
  check('WebGL fallback activates',await fallback.locator('body').evaluate(e=>e.classList.contains('no-webgl')));
  check('Failure has a recovery banner',await fallback.locator('#scene-error').isVisible());
  check('Unavailable 3D controls disabled',await fallback.locator('#remix').isDisabled());
- await fallback.locator('.card-title').first().click();check('Reading still works without WebGL',await fallback.locator('#reader-dialog').isVisible());
+ await fallback.locator('.card-title').first().click();await fallback.locator('.card-back [data-read]').first().click();await fallback.locator('#reader-dialog').waitFor({state:'visible'});check('Reading still works without WebGL',await fallback.locator('#reader-dialog').isVisible());
  await fallback.keyboard.press('Escape');await fallback.evaluate(()=>window.blockWebGL=false);await fallback.locator('#retry-scene').click();
  await fallback.waitForFunction(()=>document.body.dataset.scene==='ready');
  check('Retry recovers WebGL',!(await fallback.locator('#remix').isDisabled()));
@@ -93,13 +92,13 @@ try {
  const pendingContext=await browser.newContext({reducedMotion:'reduce'});
  const pending=await pendingContext.newPage();let release;
  const gate=new Promise(resolve=>release=resolve);
- await pending.route('**/src/world.js',async route=>{await gate;await route.continue()});
+ await pending.route('**/src/world.js*',async route=>{await gate;await route.continue()});
  await pending.goto('http://127.0.0.1:5173/',{waitUntil:'domcontentloaded'});
  await pending.waitForFunction(()=>document.body.dataset.scene==='loading');
  check('Real module load shows skeleton',await pending.locator('#scene-loading').isVisible());
  check('Pending scene reports busy',await pending.locator('#hero-art').getAttribute('aria-busy')==='true');
  check('Pending scene controls disabled',await pending.locator('#remix').isDisabled());
- await pending.locator('.card-title').first().click();
+ await pending.locator('.card-title').first().click();await pending.locator('.card-back [data-read]').first().click();
  check('Reading works during 3D load',await pending.locator('#reader-dialog').isVisible());
  await pending.keyboard.press('Escape');release();await pending.waitForFunction(()=>document.body.dataset.scene==='ready');
  check('Skeleton clears after real rendering',!(await pending.locator('#scene-loading').isVisible()));

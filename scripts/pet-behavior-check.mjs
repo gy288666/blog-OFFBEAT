@@ -1,0 +1,15 @@
+import assert from 'node:assert/strict';
+import * as THREE from 'three';
+import {createCorgiBehavior} from '../src/corgi-behavior.js';
+const listeners=new Map(),label={};globalThis.window={addEventListener:(n,fn)=>listeners.set(n,fn),removeEventListener:n=>listeners.delete(n)};globalThis.document={querySelector:()=>label,documentElement:{addEventListener(){},removeEventListener(){}}};
+const mesh=()=>new THREE.Mesh(new THREE.SphereGeometry(.1),new THREE.MeshBasicMaterial());
+const parts={canvas:{dataset:{},getBoundingClientRect:()=>({left:100,right:300,top:100,bottom:300,width:200,height:200})},dog:new THREE.Group(),head:new THREE.Group(),legs:Array.from({length:4},()=>new THREE.Group()),eyes:[mesh(),mesh()],ears:[new THREE.Group(),new THREE.Group()],tail:new THREE.Group(),tongue:mesh(),ball:mesh(),shadow:mesh(),ballShadow:mesh()};parts.ball.position.set(1,.235,.4);
+const behavior=createCorgiBehavior(parts);let t=0;const step=(seconds,moving=true)=>{for(let i=0;i<seconds*60;i++){t+=1/60;behavior.update(t,moving);assert.ok(parts.ball.position.y>=.235);assert.ok(Number.isFinite(parts.head.rotation.y))}};
+step(2.5);assert.equal(parts.canvas.dataset.petState,'play');
+behavior.kick();step(.5);assert.equal(parts.canvas.dataset.petState,'chase');assert.ok(parts.ball.position.y>.3);
+step(1.6);assert.equal(parts.canvas.dataset.petState,'happy');
+behavior.pat();step(.4);assert.equal(parts.canvas.dataset.petState,'pat');assert.ok(parts.eyes[0].scale.y<.03);
+const pose=parts.head.rotation.toArray();step(4,false);assert.deepEqual(parts.head.rotation.toArray(),pose);assert.equal(parts.canvas.dataset.petState,'pat');
+step(3);listeners.get('pointermove')({pointerType:'mouse',clientX:280,clientY:160});step(.5);assert.equal(parts.canvas.dataset.petState,'watch');assert.ok(parts.head.rotation.y>.05);
+const states=new Set();for(let i=0;i<360;i++){step(1/60);states.add(parts.canvas.dataset.petState)}assert.ok(states.has('chase'),'Pointer nearby must not trap idle pet in watching');
+behavior.dispose();assert.equal(listeners.size,0);console.log('PASS: idle sequence, kick bounce, celebration, pat expression, pause freeze, pointer attention, cleanup.');
